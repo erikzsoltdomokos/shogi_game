@@ -87,20 +87,27 @@ public class AIPlayer extends Player {
             ? game.getBlackHand() 
             : game.getWhiteHand();
         
+        // Csak egyszer vizsgáljuk meg minden bábu típust (nem ismétlődve)
+        java.util.Set<String> processedTypes = new java.util.HashSet<>();
+        
         for (Piece piece : hand) {
             String pieceType = piece.getClass().getSimpleName();
+            
+            // Ha már feldolgoztuk ezt a típust, ugorjuk át
+            if (processedTypes.contains(pieceType)) {
+                continue;
+            }
+            processedTypes.add(pieceType);
             
             for (int row = 0; row < 9; row++) {
                 for (int col = 0; col < 9; col++) {
                     Position to = new Position(row, col);
                     
-                    // Próbáljuk meg elhelyezni (dropPiece saját maga ellenőrzi a szabályokat)
+                    // Csak üres mezőkre próbálhatunk drop-olni
                     if (board.getPieceAt(row, col) == null) {
-                        // Ideiglenesen tároljuk az állapotot
-                        Piece.Color currentPlayer = game.getCurrentPlayer();
-                        
-                        // Ha ez a mi körünk, próbáljuk meg
-                        if (currentPlayer == getColor()) {
+                        // Teszteljük, hogy a dropPiece elfogadná-e ezt a lépést
+                        // (ellenőrzi a pawn szabályokat, sakk helyzetet, stb.)
+                        if (isValidDrop(game, pieceType, to)) {
                             moves.add(new Move(pieceType, to));
                         }
                     }
@@ -109,6 +116,112 @@ public class AIPlayer extends Player {
         }
         
         return moves;
+    }
+    
+    /**
+     * Ellenőrzi, hogy egy drop lépés érvényes-e.
+     * @param game A játék
+     * @param pieceType A bábu típusa
+     * @param to Hová helyezünk
+     * @return true, ha a drop lépés szabályos
+     */
+    private boolean isValidDrop(ShogiGame game, String pieceType, Position to) {
+        // Szimulálunk egy drop-ot és ellenőrizzük, hogy sikeres-e
+        // Ezt nem tudjuk közvetlenül, ezért egyszerűsített ellenőrzés:
+        
+        Board board = game.getBoard();
+        
+        // Alapvető ellenőrzések (ezeket a dropPiece is csinálja):
+        // 1. Mező üres?
+        if (board.getPieceAt(to.getRow(), to.getCol()) != null) {
+            return false;
+        }
+        
+        // 2. Pawn speciális szabályok
+        if ("Pawn".equals(pieceType)) {
+            // Nem lehet olyan oszlopba, ahol már van saját gyalog
+            for (int r = 0; r < 9; r++) {
+                Piece p = board.getPieceAt(r, to.getCol());
+                if (p instanceof Pawn && 
+                    p.getColor() == getColor() && !p.isPromoted()) {
+                    return false;
+                }
+            }
+            
+            // Knight és Lance nem mehet olyan helyre, ahonnan nem tud lépni
+            // (Pawn esetén utolsó sor, Lance/Knight esetén speciális)
+            if (getColor() == Piece.Color.BLACK && to.getRow() == 0) {
+                return false; // BLACK pawn nem mehet a 0. sorba
+            }
+            if (getColor() == Piece.Color.WHITE && to.getRow() == 8) {
+                return false; // WHITE pawn nem mehet a 8. sorba
+            }
+        }
+        
+        // 3. Lance nem mehet olyan helyre, ahonnan nem tud lépni
+        if ("Lance".equals(pieceType)) {
+            if (getColor() == Piece.Color.BLACK && to.getRow() == 0) {
+                return false;
+            }
+            if (getColor() == Piece.Color.WHITE && to.getRow() == 8) {
+                return false;
+            }
+        }
+        
+        // 4. Knight nem mehet olyan helyre, ahonnan nem tud lépni
+        if ("Knight".equals(pieceType)) {
+            if (getColor() == Piece.Color.BLACK && to.getRow() <= 1) {
+                return false;
+            }
+            if (getColor() == Piece.Color.WHITE && to.getRow() >= 7) {
+                return false;
+            }
+        }
+        
+        // 5. KRITIKUS: Sakkban hagyás ellenőrzés
+        // Ha sakkban vagyunk, a drop NEM oldja meg a sakkot
+        // (csak király mozgás vagy blokkolás/leütés oldhatja meg)
+        if (game.isInCheck(getColor())) {
+            // Szimulálunk egy drop-ot
+            try {
+                // Ideiglenesen létrehozzuk a bábut
+                Piece tempPiece = createPieceByType(pieceType, getColor(), to);
+                board.setPieceAt(to.getRow(), to.getCol(), tempPiece);
+                
+                // Ellenőrizzük, hogy még mindig sakkban vagyunk-e
+                boolean stillInCheck = game.isInCheck(getColor());
+                
+                // Visszaállítjuk
+                board.setPieceAt(to.getRow(), to.getCol(), null);
+                
+                return !stillInCheck; // Csak akkor OK, ha már nincs sakkban
+            } catch (Exception e) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Létrehoz egy bábu példányt típus alapján.
+     * @param pieceType A bábu típusa
+     * @param color A bábu színe
+     * @param position A bábu pozíciója
+     * @return Az új bábu példány
+     */
+    private Piece createPieceByType(String pieceType, Piece.Color color, Position position) {
+        switch (pieceType) {
+            case "Pawn": return new Pawn(color, position);
+            case "Lance": return new Lance(color, position);
+            case "Knight": return new Knight(color, position);
+            case "SilverGeneral": return new SilverGeneral(color, position);
+            case "GoldGeneral": return new GoldGeneral(color, position);
+            case "Bishop": return new Bishop(color, position);
+            case "Rook": return new Rook(color, position);
+            case "King": return new King(color, position);
+            default: throw new IllegalArgumentException("Unknown piece type: " + pieceType);
+        }
     }
     
     /**

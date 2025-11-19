@@ -157,11 +157,19 @@ public class ShogiGUI extends JFrame {
         
         // Jobb oldali panel: fehér játékos keze
         whiteHandPanel = new HandPanel(Piece.Color.WHITE);
-        add(whiteHandPanel, BorderLayout.EAST);
+        JScrollPane whiteScrollPane = new JScrollPane(whiteHandPanel);
+        whiteScrollPane.setPreferredSize(new Dimension(HAND_PANEL_WIDTH, BOARD_SIZE));
+        whiteScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        whiteScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        add(whiteScrollPane, BorderLayout.EAST);
         
         // Bal oldali panel: fekete játékos keze
         blackHandPanel = new HandPanel(Piece.Color.BLACK);
-        add(blackHandPanel, BorderLayout.WEST);
+        JScrollPane blackScrollPane = new JScrollPane(blackHandPanel);
+        blackScrollPane.setPreferredSize(new Dimension(HAND_PANEL_WIDTH, BOARD_SIZE));
+        blackScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
+        blackScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        add(blackScrollPane, BorderLayout.WEST);
     }
     
     /**
@@ -339,7 +347,6 @@ public class ShogiGUI extends JFrame {
         
         public HandPanel(Piece.Color color) {
             this.color = color;
-            setPreferredSize(new Dimension(HAND_PANEL_WIDTH, BOARD_SIZE));
             setBackground(new Color(200, 160, 80));
             setBorder(BorderFactory.createTitledBorder(
                 color == Piece.Color.BLACK ? "Fekete keze" : "Fehér keze"));
@@ -350,6 +357,17 @@ public class ShogiGUI extends JFrame {
                     handleHandClick(color, e.getY());
                 }
             });
+        }
+        
+        @Override
+        public Dimension getPreferredSize() {
+            // Dinamikusan számoljuk a szükséges magasságot
+            List<Piece> hand = (color == Piece.Color.BLACK) 
+                ? game.getBlackHand() 
+                : game.getWhiteHand();
+            
+            int height = Math.max(BOARD_SIZE, 30 + hand.size() * 50 + 10);
+            return new Dimension(HAND_PANEL_WIDTH, height);
         }
         
         @Override
