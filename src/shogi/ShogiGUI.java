@@ -231,6 +231,7 @@ public class ShogiGUI extends JFrame {
             drawPieces(g2d);
             drawValidMoves(g2d);
             drawSelectedSquare(g2d);
+            drawCheckIndicator(g2d);
         }
         
         /**
@@ -246,6 +247,29 @@ public class ShogiGUI extends JFrame {
                 g.drawLine(0, i * CELL_SIZE, BOARD_SIZE, i * CELL_SIZE);
                 // Függőleges vonalak
                 g.drawLine(i * CELL_SIZE, 0, i * CELL_SIZE, BOARD_SIZE);
+            }
+            
+            // Koordináta címkék
+            drawCoordinates(g);
+        }
+        
+        /**
+         * Koordináta címkék rajzolása (1-9 sorok, a-i oszlopok).
+         */
+        private void drawCoordinates(Graphics2D g) {
+            g.setFont(new Font("Arial", Font.PLAIN, 12));
+            g.setColor(new Color(100, 100, 100));
+            
+            // Sorok (1-9) bal oldalon
+            for (int row = 0; row < 9; row++) {
+                String label = String.valueOf(row + 1);
+                g.drawString(label, 5, row * CELL_SIZE + CELL_SIZE / 2 + 5);
+            }
+            
+            // Oszlopok (a-i) alul
+            for (int col = 0; col < 9; col++) {
+                String label = String.valueOf((char)('a' + col));
+                g.drawString(label, col * CELL_SIZE + CELL_SIZE / 2 - 3, BOARD_SIZE - 5);
             }
         }
         
@@ -334,6 +358,48 @@ public class ShogiGUI extends JFrame {
                 g.setColor(Color.YELLOW);
                 g.setStroke(new BasicStroke(3));
                 g.drawRect(x, y, CELL_SIZE, CELL_SIZE);
+            }
+        }
+        
+        /**
+         * Sakk jelzés rajzolása - piros keret a sakkban lévő király körül.
+         */
+        private void drawCheckIndicator(Graphics2D g) {
+            // Ellenőrizzük mindkét királyt
+            drawCheckForKing(g, Piece.Color.BLACK);
+            drawCheckForKing(g, Piece.Color.WHITE);
+        }
+        
+        /**
+         * Sakk jelzés egy adott színű királyra.
+         */
+        private void drawCheckForKing(Graphics2D g, Piece.Color color) {
+            if (!game.isInCheck(color)) {
+                return; // Nincs sakkban
+            }
+            
+            // Megkeressük a királyt
+            Board board = game.getBoard();
+            for (int row = 0; row < 9; row++) {
+                for (int col = 0; col < 9; col++) {
+                    Piece piece = board.getPieceAt(row, col);
+                    if (piece instanceof King && piece.getColor() == color) {
+                        // Piros vilógó keret
+                        int x = col * CELL_SIZE;
+                        int y = row * CELL_SIZE;
+                        
+                        g.setColor(new Color(255, 0, 0, 180));
+                        g.setStroke(new BasicStroke(5));
+                        g.drawRect(x + 2, y + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+                        
+                        // Belső világosabb keret
+                        g.setColor(new Color(255, 100, 100, 100));
+                        g.setStroke(new BasicStroke(3));
+                        g.drawRect(x + 5, y + 5, CELL_SIZE - 10, CELL_SIZE - 10);
+                        
+                        return;
+                    }
+                }
             }
         }
     }
@@ -577,7 +643,37 @@ public class ShogiGUI extends JFrame {
      * Játék végének ellenőrzése.
      */
     private void checkGameEnd() {
-        // Ellenőrizzük, hogy valamelyik király ki lett-e ütve
+        // 1. Impasse (入玉) ellenőrzés
+        ShogiGame.ImpasseResult impasse = game.checkImpasse();
+        if (impasse.isImpasse) {
+            String message;
+            if (impasse.winner == null) {
+                message = String.format(
+                    "Döntetlen! (入玉 - Impasse)\n\n" +
+                    "Mindkét király átjutott az ellenfél térfelére.\n" +
+                    "Fekete pontok: %d\n" +
+                    "Fehér pontok: %d\n\n" +
+                    "Egyik fél sem érte el a 31 pontot a győzelemhez.",
+                    impasse.blackPoints, impasse.whitePoints
+                );
+            } else {
+                String winnerName = (impasse.winner == Piece.Color.BLACK) ? "Fekete" : "Fehér";
+                message = String.format(
+                    "%s nyert! (入玉 - Impasse)\n\n" +
+                    "Mindkét király átjutott az ellenfél térfelére.\n" +
+                    "Fekete pontok: %d\n" +
+                    "Fehér pontok: %d\n\n" +
+                    "%s elérte a 31+ pontot!",
+                    winnerName, impasse.blackPoints, impasse.whitePoints, winnerName
+                );
+            }
+            JOptionPane.showMessageDialog(this, message, "Játék vége - Impasse", 
+                JOptionPane.INFORMATION_MESSAGE);
+            newGame();
+            return;
+        }
+        
+        // 2. Ellenőrizzük, hogy valamelyik király ki lett-e ütve / sakkmatt
         if (game.isGameOver(Piece.Color.BLACK)) {
             JOptionPane.showMessageDialog(this, 
                 "Fehér nyert! A fekete király ki lett ütve vagy sakkmattban van.",

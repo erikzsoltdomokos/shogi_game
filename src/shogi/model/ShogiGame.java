@@ -224,6 +224,22 @@ public class ShogiGame {
         board.setPieceAt(to.getRow(), to.getCol(), found);
         hand.remove(found);
 
+        // KRITIKUS: Pawn Drop Mate ellenőrzés
+        // Gyalog drop-pal NEM lehet mattot adni (Shogi szabály)
+        if (found instanceof Pawn && !found.isPromoted()) {
+            Piece.Color opponent = (currentPlayer == Piece.Color.BLACK) 
+                ? Piece.Color.WHITE : Piece.Color.BLACK;
+            
+            if (isInCheck(opponent) && isCheckmate(opponent)) {
+                // Ez Pawn Drop Mate lenne - ILLEGÁLIS!
+                // Visszavonjuk a drop-ot
+                board.setPieceAt(to.getRow(), to.getCol(), null);
+                found.setPosition(null);
+                hand.add(found);
+                return false;
+            }
+        }
+
         switchPlayer();
         return true;
     }
@@ -506,6 +522,146 @@ public class ShogiGame {
             blackHand.add(piece);
         } else {
             whiteHand.add(piece);
+        }
+    }
+    
+    // ===================================================================
+    //                    IMPASSE (入玉) RULE
+    // ===================================================================
+    
+    /**
+     * Ellenőrzi az Impasse (入玉) helyzetet.
+     * Ha mindkét király átjutott az ellenfél térfelére és nincs sakk,
+     * akkor pont alapján döntődik el a győztes.
+     * 
+     * BLACK király: 0-2. sor = ellenfél tere
+     * WHITE király: 6-8. sor = ellenfél tere
+     * 
+     * Pontozás:
+     * - Király: számít, de nem kap pontot
+     * - Rook/Bishop: 5 pont
+     * - Többi bábu: 1 pont
+     * - Promótált bábuk: dupla pont
+     * 
+     * Minimális követelmény:
+     * - 28+ pont → döntetlen javaslat
+     * - 31+ pont → győzelem igénylés (ha mindkét király ellenfél terén)
+     * 
+     * @return ImpasseResult objektum az eredménnyel
+     */
+    public ImpasseResult checkImpasse() {
+        // Mindkét király pozíciójának keresése
+        Position blackKingPos = findKing(Piece.Color.BLACK);
+        Position whiteKingPos = findKing(Piece.Color.WHITE);
+        
+        if (blackKingPos == null || whiteKingPos == null) {
+            return new ImpasseResult(false, null, 0, 0);
+        }
+        
+        // Ellenőrizzük, hogy mindkét király az ellenfél térfelén van-e
+        boolean blackKingInEnemyTerritory = blackKingPos.getRow() <= 2;
+        boolean whiteKingInEnemyTerritory = whiteKingPos.getRow() >= 6;
+        
+        if (!blackKingInEnemyTerritory && !whiteKingInEnemyTerritory) {
+            return new ImpasseResult(false, null, 0, 0);
+        }
+        
+        // Egyik vagy mindkét király ellenfél terén → számoljuk a pontokat
+        int blackPoints = calculateImpassePoints(Piece.Color.BLACK);
+        int whitePoints = calculateImpassePoints(Piece.Color.WHITE);
+        
+        // Ha mindkét király ellenfél terén van
+        if (blackKingInEnemyTerritory && whiteKingInEnemyTerritory) {
+            if (blackPoints >= 31 && whitePoints >= 31) {
+                return new ImpasseResult(true, null, blackPoints, whitePoints); // Döntetlen
+            } else if (blackPoints >= 31) {
+                return new ImpasseResult(true, Piece.Color.BLACK, blackPoints, whitePoints);
+            } else if (whitePoints >= 31) {
+                return new ImpasseResult(true, Piece.Color.WHITE, blackPoints, whitePoints);
+            } else if (blackPoints >= 28 && whitePoints >= 28) {
+                return new ImpasseResult(true, null, blackPoints, whitePoints); // Döntetlen javaslat
+            }
+        }
+        
+        return new ImpasseResult(false, null, blackPoints, whitePoints);
+    }
+    
+    /**
+     * Kiszámolja egy játékos pontjait az Impasse szabály szerint.
+     * Csak az ellenfél térfelén lévő és kézben tartott bábuk számítanak.
+     * 
+     * @param color Melyik játékos?
+     * @return A pontok száma
+     */
+    private int calculateImpassePoints(Piece.Color color) {
+        int points = 0;
+        
+        // Táblán lévő bábuk az ellenfél térfelén
+        int enemyStart = (color == Piece.Color.BLACK) ? 0 : 6;
+        int enemyEnd = (color == Piece.Color.BLACK) ? 2 : 8;
+        
+        for (int row = enemyStart; row <= enemyEnd; row++) {
+            for (int col = 0; col < 9; col++) {
+                Piece piece = board.getPieceAt(row, col);
+                if (piece != null && piece.getColor() == color && !(piece instanceof King)) {
+                    points += getPieceValue(piece);
+                }
+            }
+        }
+        
+        // Kézben tartott bábuk
+        List<Piece> hand = (color == Piece.Color.BLACK) ? blackHand : whiteHand;
+        for (Piece piece : hand) {
+            points += getPieceValue(piece);
+        }
+        
+        return points;
+    }
+    
+    /**
+     * Meghatározza egy bábu pontértékét az Impasse szabály szerint.
+     * 
+     * @param piece A bábu
+     * @return A pontérték
+     */
+    private int getPieceValue(Piece piece) {
+        if (piece instanceof King) {
+            return 0; // Király nem számít
+        }
+        
+        int baseValue;
+        if (piece instanceof Rook || piece instanceof Bishop) {
+            baseValue = 5;
+        } else {
+            baseValue = 1; // Pawn, Lance, Knight, Silver, Gold
+        }
+        
+        // Promótált bábuk nem kapnak extra pontot az Impasse számításban
+        // (a szabály szerint csak a bábu típusa számít)
+        return baseValue;
+    }
+    
+    /**
+     * Impasse eredmény tároló osztály.
+     */
+    public static class ImpasseResult {
+        /** True ha Impasse helyzet áll fenn */
+        public final boolean isImpasse;
+        
+        /** Győztes szín (null ha döntetlen) */
+        public final Piece.Color winner;
+        
+        /** BLACK pontszám */
+        public final int blackPoints;
+        
+        /** WHITE pontszám */
+        public final int whitePoints;
+        
+        public ImpasseResult(boolean isImpasse, Piece.Color winner, int blackPoints, int whitePoints) {
+            this.isImpasse = isImpasse;
+            this.winner = winner;
+            this.blackPoints = blackPoints;
+            this.whitePoints = whitePoints;
         }
     }
 
