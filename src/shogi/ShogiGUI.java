@@ -57,6 +57,9 @@ public class ShogiGUI extends JFrame {
     /** Aktuálisan kiválasztott pozíció a táblán (lehet null) */
     private Position selectedPosition;
     
+    /** Lehetséges lépések a kiválasztott bábuval */
+    private List<Position> validMoves;
+    
     /** True, ha drop módban vagyunk (kézből bábu visszahelyezés) */
     private boolean selectingDropPiece;
     
@@ -87,6 +90,7 @@ public class ShogiGUI extends JFrame {
         // Játék inicializálása alapállásban
         game = new ShogiGame();
         selectedPosition = null;
+        validMoves = List.of();
         selectingDropPiece = false;
         
         setupGUI();
@@ -217,6 +221,7 @@ public class ShogiGUI extends JFrame {
             
             drawBoard(g2d);
             drawPieces(g2d);
+            drawValidMoves(g2d);
             drawSelectedSquare(g2d);
         }
         
@@ -286,6 +291,26 @@ public class ShogiGUI extends JFrame {
             int textY = y + (CELL_SIZE + fm.getAscent() - fm.getDescent()) / 2;
             
             g.drawString(symbol, textX, textY);
+        }
+        
+        /**
+         * Lehetséges lépések megjelenítése átlátszó kék négyzetekkel.
+         */
+        private void drawValidMoves(Graphics2D g) {
+            if (!validMoves.isEmpty()) {
+                g.setColor(new Color(0, 150, 255, 100));
+                for (Position pos : validMoves) {
+                    int x = pos.getCol() * CELL_SIZE;
+                    int y = pos.getRow() * CELL_SIZE;
+                    g.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                    
+                    // Kék keret a jobban láthatósághoz
+                    g.setColor(new Color(0, 100, 255, 150));
+                    g.setStroke(new BasicStroke(2));
+                    g.drawRect(x + 2, y + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+                    g.setColor(new Color(0, 150, 255, 100));
+                }
+            }
         }
         
         /**
@@ -406,6 +431,7 @@ public class ShogiGUI extends JFrame {
             Piece piece = game.getBoard().getPieceAt(row, col);
             if (piece != null && piece.getColor() == game.getCurrentPlayer()) {
                 selectedPosition = clickedPos;
+                validMoves = piece.getLegalMoves(game.getBoard());
                 boardPanel.repaint();
             }
         } else {
@@ -413,6 +439,7 @@ public class ShogiGUI extends JFrame {
             if (selectedPosition.equals(clickedPos)) {
                 // Ugyanarra kattintott - törlés
                 selectedPosition = null;
+                validMoves = List.of();
                 boardPanel.repaint();
             } else {
                 performMove(selectedPosition, clickedPos);
@@ -451,6 +478,7 @@ public class ShogiGUI extends JFrame {
         boolean success = game.makeMove(from, to);
         
         selectedPosition = null;
+        validMoves = List.of();
         boardPanel.repaint();
         blackHandPanel.repaint();
         whiteHandPanel.repaint();
@@ -466,11 +494,21 @@ public class ShogiGUI extends JFrame {
         if (gameMode == GameMode.PLAYER_VS_AI && game.getCurrentPlayer() == Piece.Color.WHITE) {
             Timer timer = new Timer(500, e -> {
                 AIPlayer ai = (AIPlayer) player2;
-                ai.makeMove(game);
+                boolean aiSuccess = ai.makeMove(game);
                 
                 boardPanel.repaint();
                 blackHandPanel.repaint();
                 whiteHandPanel.repaint();
+                
+                if (!aiSuccess) {
+                    // AI nem tud lépni - játék vége
+                    JOptionPane.showMessageDialog(this, 
+                        "Fekete nyert! Az AI nem tud többé lépni.",
+                        "Játék vége",
+                        JOptionPane.INFORMATION_MESSAGE);
+                    newGame();
+                    return;
+                }
                 
                 checkGameEnd();
             });
@@ -487,6 +525,7 @@ public class ShogiGUI extends JFrame {
         
         selectingDropPiece = false;
         dropPieceType = null;
+        validMoves = List.of();
         
         boardPanel.repaint();
         blackHandPanel.repaint();
@@ -517,18 +556,19 @@ public class ShogiGUI extends JFrame {
     }
     
     /**
-     * Játék vége ellenőrzése.
+     * Játék végének ellenőrzése.
      */
     private void checkGameEnd() {
-        if (game.isCheckmate(Piece.Color.BLACK)) {
+        // Ellenőrizzük, hogy valamelyik király ki lett-e ütve
+        if (game.isGameOver(Piece.Color.BLACK)) {
             JOptionPane.showMessageDialog(this, 
-                "Fehér nyert! A fekete király sakkmattban van.",
+                "Fehér nyert! A fekete király ki lett ütve vagy sakkmattban van.",
                 "Játék vége",
                 JOptionPane.INFORMATION_MESSAGE);
             newGame();
-        } else if (game.isCheckmate(Piece.Color.WHITE)) {
+        } else if (game.isGameOver(Piece.Color.WHITE)) {
             JOptionPane.showMessageDialog(this, 
-                "Fekete nyert! A fehér király sakkmattban van.",
+                "Fekete nyert! A fehér király ki lett ütve vagy sakkmattban van.",
                 "Játék vége",
                 JOptionPane.INFORMATION_MESSAGE);
             newGame();

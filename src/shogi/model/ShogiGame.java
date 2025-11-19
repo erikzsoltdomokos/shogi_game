@@ -139,6 +139,12 @@ public class ShogiGame {
         }
 
         Piece target = board.getPieceAt(to.getRow(), to.getCol());
+        
+        // KRITIKUS: Királyt nem lehet kiütni!
+        if (target instanceof King) {
+            return false; // Illegális lépés - király kiütése nem megengedett
+        }
+        
         if (target != null) {
             capturePiece(target, p.getColor());
         }
@@ -380,12 +386,38 @@ public class ShogiGame {
     }
     
     /**
+     * Ellenőrzi, hogy a játék véget ért-e valamelyik játékosnak.
+     * A játék véget ér, ha:
+     * 1. A király ki lett ütve (nincs többé a táblán)
+     * 2. Sakkmatt áll fenn
+     * 
+     * @param color Melyik játékos?
+     * @return true, ha a játék véget ért ennek a játékosnak
+     */
+    public boolean isGameOver(Piece.Color color) {
+        // Ellenőrizzük, hogy létezik-e még a király
+        Position kingPos = findKing(color);
+        if (kingPos == null) {
+            return true; // Király kiütve = játék vége
+        }
+        
+        // Ellenőrizzük a sakkmattot
+        return isCheckmate(color);
+    }
+    
+    /**
      * Ellenőrzi, hogy a megadott színű király sakk-mattban van-e.
      * Sakk-matt = sakkban van ÉS nincs olyan legális lépés, ami megmentené.
      * @param color Melyik király?
      * @return true, ha sakk-matt
      */
     public boolean isCheckmate(Piece.Color color) {
+        // Ha nincs király, akkor nem sakkmatt, hanem vége a játéknak
+        Position kingPos = findKing(color);
+        if (kingPos == null) {
+            return false;
+        }
+        
         if (!isInCheck(color)) {
             return false; // Nincs sakkban, akkor nem lehet matt sem
         }
