@@ -1,0 +1,30 @@
+# Compiled class files
+bin/
+*.class
+
+# Package files
+*.jar
+!lib/*.jar
+
+# Log files
+*.log
+
+# IDE specific files
+.vscode/
+.settings/
+.classpath
+.project
+.sonarlint/
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Save files
+saves/*.json
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~

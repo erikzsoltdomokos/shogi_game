@@ -1,0 +1,16 @@
+{
+  "rules": {
+    "java:S106": {
+      "level": "off"
+    },
+    "java:S1192": {
+      "level": "off"
+    },
+    "java:S3776": {
+      "level": "off"
+    },
+    "java:S1104": {
+      "level": "off"
+    }
+  }
+}
