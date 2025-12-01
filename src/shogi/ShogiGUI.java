@@ -24,14 +24,26 @@ import java.util.List;
  */
 public class ShogiGUI extends JFrame {
     
-    /** Egy cella mérete pixelben */
-    private static final int CELL_SIZE = 60;
+    /** Alapértelmezett cella méret pixelben */
+    private static final int DEFAULT_CELL_SIZE = 60;
     
-    /** Teljes tábla mérete pixelben (9×60) */
-    private static final int BOARD_SIZE = 9 * CELL_SIZE;
+    /** Alapértelmezett tábla méret pixelben (9×60) */
+    private static final int DEFAULT_BOARD_SIZE = 9 * DEFAULT_CELL_SIZE;
     
     /** Kéz panel szélessége pixelben */
     private static final int HAND_PANEL_WIDTH = 200;
+    
+    /** Aktuális cella méret (dinamikusan változik az ablak méretével) */
+    private int currentCellSize = DEFAULT_CELL_SIZE;
+    
+    /** Aktuális tábla méret (dinamikusan változik az ablak méretével) */
+    private int currentBoardSize = DEFAULT_BOARD_SIZE;
+    
+    /** Tábla rajzolás eltolása X irányban (középre igazításhoz) */
+    private int boardOffsetX = 0;
+    
+    /** Tábla rajzolás eltolása Y irányban (középre igazításhoz) */
+    private int boardOffsetY = 0;
     
     /** A játék logikai motorja */
     private ShogiGame game;
@@ -158,7 +170,7 @@ public class ShogiGUI extends JFrame {
         // Jobb oldali panel: fehér játékos keze
         whiteHandPanel = new HandPanel(Piece.Color.WHITE);
         JScrollPane whiteScrollPane = new JScrollPane(whiteHandPanel);
-        whiteScrollPane.setPreferredSize(new Dimension(HAND_PANEL_WIDTH, BOARD_SIZE));
+        whiteScrollPane.setPreferredSize(new Dimension(HAND_PANEL_WIDTH, DEFAULT_BOARD_SIZE));
         whiteScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         whiteScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         add(whiteScrollPane, BorderLayout.EAST);
@@ -166,10 +178,33 @@ public class ShogiGUI extends JFrame {
         // Bal oldali panel: fekete játékos keze
         blackHandPanel = new HandPanel(Piece.Color.BLACK);
         JScrollPane blackScrollPane = new JScrollPane(blackHandPanel);
-        blackScrollPane.setPreferredSize(new Dimension(HAND_PANEL_WIDTH, BOARD_SIZE));
+        blackScrollPane.setPreferredSize(new Dimension(HAND_PANEL_WIDTH, DEFAULT_BOARD_SIZE));
         blackScrollPane.setVerticalScrollBarPolicy(JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED);
         blackScrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
         add(blackScrollPane, BorderLayout.WEST);
+    }
+    
+    /**
+     * Tábla skálázásának frissítése az ablak mérete alapján.
+     */
+    private void updateBoardScale() {
+        if (boardPanel == null) return;
+        
+        int panelWidth = boardPanel.getWidth();
+        int panelHeight = boardPanel.getHeight();
+        
+        // Kisebb oldal határozza meg a tábla méretét
+        int minSize = Math.min(panelWidth, panelHeight);
+        
+        // Új cellaméret és táblaméret számítása
+        currentCellSize = minSize / 9;
+        currentBoardSize = currentCellSize * 9;
+        
+        // Középre igazítás offset számítása
+        boardOffsetX = (panelWidth - currentBoardSize) / 2;
+        boardOffsetY = (panelHeight - currentBoardSize) / 2;
+        
+        boardPanel.repaint();
     }
     
     /**
@@ -210,13 +245,21 @@ public class ShogiGUI extends JFrame {
     private class BoardPanel extends JPanel {
         
         public BoardPanel() {
-            setPreferredSize(new Dimension(BOARD_SIZE, BOARD_SIZE));
+            setPreferredSize(new Dimension(DEFAULT_BOARD_SIZE, DEFAULT_BOARD_SIZE));
             setBackground(new Color(220, 179, 92));
             
             addMouseListener(new MouseAdapter() {
                 @Override
                 public void mouseClicked(MouseEvent e) {
                     handleBoardClick(e.getX(), e.getY());
+                }
+            });
+            
+            // ComponentListener a dinamikus átméretezéshez
+            addComponentListener(new ComponentAdapter() {
+                @Override
+                public void componentResized(ComponentEvent e) {
+                    updateBoardScale();
                 }
             });
         }
@@ -227,11 +270,15 @@ public class ShogiGUI extends JFrame {
             Graphics2D g2d = (Graphics2D) g;
             g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
             
+            // Eltoljuk a rajzolást, hogy középre kerüljön
+            g2d.translate(boardOffsetX, boardOffsetY);
+            
             drawBoard(g2d);
             drawPieces(g2d);
             drawValidMoves(g2d);
             drawSelectedSquare(g2d);
             drawCheckIndicator(g2d);
+            drawCoordinates(g2d);
         }
         
         /**
@@ -244,9 +291,9 @@ public class ShogiGUI extends JFrame {
             
             for (int i = 0; i <= 9; i++) {
                 // Vízszintes vonalak
-                g.drawLine(0, i * CELL_SIZE, BOARD_SIZE, i * CELL_SIZE);
+                g.drawLine(0, i * currentCellSize, currentBoardSize, i * currentCellSize);
                 // Függőleges vonalak
-                g.drawLine(i * CELL_SIZE, 0, i * CELL_SIZE, BOARD_SIZE);
+                g.drawLine(i * currentCellSize, 0, i * currentCellSize, currentBoardSize);
             }
             
             // Koordináta címkék
@@ -263,13 +310,13 @@ public class ShogiGUI extends JFrame {
             // Sorok (1-9) bal oldalon
             for (int row = 0; row < 9; row++) {
                 String label = String.valueOf(row + 1);
-                g.drawString(label, 5, row * CELL_SIZE + CELL_SIZE / 2 + 5);
+                g.drawString(label, 5, row * currentCellSize + currentCellSize / 2 + 5);
             }
             
             // Oszlopok (a-i) alul
             for (int col = 0; col < 9; col++) {
                 String label = String.valueOf((char)('a' + col));
-                g.drawString(label, col * CELL_SIZE + CELL_SIZE / 2 - 3, BOARD_SIZE - 5);
+                g.drawString(label, col * currentCellSize + currentCellSize / 2 - 3, currentBoardSize - 5);
             }
         }
         
@@ -293,8 +340,8 @@ public class ShogiGUI extends JFrame {
          * Egy figura rajzolása.
          */
         private void drawPiece(Graphics2D g, Piece piece, int row, int col) {
-            int x = col * CELL_SIZE;
-            int y = row * CELL_SIZE;
+            int x = col * currentCellSize;
+            int y = row * currentCellSize;
             
             // Figura háttér
             if (piece.getColor() == Piece.Color.BLACK) {
@@ -303,24 +350,25 @@ public class ShogiGUI extends JFrame {
                 g.setColor(new Color(240, 240, 240));
             }
             
-            int margin = 8;
+            int margin = (int)(currentCellSize * 0.13);
             g.fillRoundRect(x + margin, y + margin, 
-                          CELL_SIZE - 2 * margin, CELL_SIZE - 2 * margin, 10, 10);
+                          currentCellSize - 2 * margin, currentCellSize - 2 * margin, 10, 10);
             
             // Keret
             g.setColor(Color.BLACK);
             g.setStroke(new BasicStroke(2));
             g.drawRoundRect(x + margin, y + margin, 
-                          CELL_SIZE - 2 * margin, CELL_SIZE - 2 * margin, 10, 10);
+                          currentCellSize - 2 * margin, currentCellSize - 2 * margin, 10, 10);
             
-            // Figura szimbólum
+            // Figura szimbólum - font méret skálázva
             String symbol = piece.getSymbol();
             g.setColor(piece.getColor() == Piece.Color.BLACK ? Color.WHITE : Color.BLACK);
-            g.setFont(new Font("Serif", Font.BOLD, 28));
+            int fontSize = (int)(currentCellSize * 0.47);
+            g.setFont(new Font("Serif", Font.BOLD, fontSize));
             
             FontMetrics fm = g.getFontMetrics();
-            int textX = x + (CELL_SIZE - fm.stringWidth(symbol)) / 2;
-            int textY = y + (CELL_SIZE + fm.getAscent() - fm.getDescent()) / 2;
+            int textX = x + (currentCellSize - fm.stringWidth(symbol)) / 2;
+            int textY = y + (currentCellSize + fm.getAscent() - fm.getDescent()) / 2;
             
             g.drawString(symbol, textX, textY);
         }
@@ -332,14 +380,14 @@ public class ShogiGUI extends JFrame {
             if (!validMoves.isEmpty()) {
                 g.setColor(new Color(0, 150, 255, 100));
                 for (Position pos : validMoves) {
-                    int x = pos.getCol() * CELL_SIZE;
-                    int y = pos.getRow() * CELL_SIZE;
-                    g.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                    int x = pos.getCol() * currentCellSize;
+                    int y = pos.getRow() * currentCellSize;
+                    g.fillRect(x, y, currentCellSize, currentCellSize);
                     
                     // Kék keret a jobban láthatósághoz
                     g.setColor(new Color(0, 100, 255, 150));
                     g.setStroke(new BasicStroke(2));
-                    g.drawRect(x + 2, y + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+                    g.drawRect(x + 2, y + 2, currentCellSize - 4, currentCellSize - 4);
                     g.setColor(new Color(0, 150, 255, 100));
                 }
             }
@@ -351,13 +399,13 @@ public class ShogiGUI extends JFrame {
         private void drawSelectedSquare(Graphics2D g) {
             if (selectedPosition != null) {
                 g.setColor(new Color(255, 255, 0, 100));
-                int x = selectedPosition.getCol() * CELL_SIZE;
-                int y = selectedPosition.getRow() * CELL_SIZE;
-                g.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+                int x = selectedPosition.getCol() * currentCellSize;
+                int y = selectedPosition.getRow() * currentCellSize;
+                g.fillRect(x, y, currentCellSize, currentCellSize);
                 
                 g.setColor(Color.YELLOW);
                 g.setStroke(new BasicStroke(3));
-                g.drawRect(x, y, CELL_SIZE, CELL_SIZE);
+                g.drawRect(x, y, currentCellSize, currentCellSize);
             }
         }
         
@@ -385,17 +433,17 @@ public class ShogiGUI extends JFrame {
                     Piece piece = board.getPieceAt(row, col);
                     if (piece instanceof King && piece.getColor() == color) {
                         // Piros vilógó keret
-                        int x = col * CELL_SIZE;
-                        int y = row * CELL_SIZE;
+                        int x = col * currentCellSize;
+                        int y = row * currentCellSize;
                         
                         g.setColor(new Color(255, 0, 0, 180));
                         g.setStroke(new BasicStroke(5));
-                        g.drawRect(x + 2, y + 2, CELL_SIZE - 4, CELL_SIZE - 4);
+                        g.drawRect(x + 2, y + 2, currentCellSize - 4, currentCellSize - 4);
                         
                         // Belső világosabb keret
                         g.setColor(new Color(255, 100, 100, 100));
                         g.setStroke(new BasicStroke(3));
-                        g.drawRect(x + 5, y + 5, CELL_SIZE - 10, CELL_SIZE - 10);
+                        g.drawRect(x + 5, y + 5, currentCellSize - 10, currentCellSize - 10);
                         
                         return;
                     }
@@ -432,7 +480,7 @@ public class ShogiGUI extends JFrame {
                 ? game.getBlackHand() 
                 : game.getWhiteHand();
             
-            int height = Math.max(BOARD_SIZE, 30 + hand.size() * 50 + 10);
+            int height = Math.max(DEFAULT_BOARD_SIZE, 30 + hand.size() * 50 + 10);
             return new Dimension(HAND_PANEL_WIDTH, height);
         }
         
@@ -494,8 +542,12 @@ public class ShogiGUI extends JFrame {
      * Táblára kattintás kezelése.
      */
     private void handleBoardClick(int x, int y) {
-        int col = x / CELL_SIZE;
-        int row = y / CELL_SIZE;
+        // Offsetet levonva számoljuk a pozíciót
+        int adjustedX = x - boardOffsetX;
+        int adjustedY = y - boardOffsetY;
+        
+        int col = adjustedX / currentCellSize;
+        int row = adjustedY / currentCellSize;
         
         if (row < 0 || row >= 9 || col < 0 || col >= 9) {
             return;
