@@ -23,6 +23,9 @@ Thumbs.db
 # Save files
 saves/*.json
 
+# Generated documentation
+docs/
+
 # Temporary files
 *.tmp
 *.bak

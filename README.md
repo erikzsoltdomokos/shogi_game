@@ -116,12 +116,12 @@ java -jar lib/junit-platform-console-standalone-1.10.1.jar \
 
 ## Documentation
 
-See [DOCUMENTATION.md](DOCUMENTATION.md) for:
-- Detailed architecture
-- Complete game rules
-- AI implementation details
-- Usage examples
-- Development guide
+### User Manual
+See [USER_MANUAL.md](USER_MANUAL.md) for:
+- How to play
+- Game controls
+- Save/Load instructions
+- Troubleshooting
 
 ## License
 
@@ -134,5 +134,5 @@ Educational project - University assignment (NHF - Nagy Házi Feladat)
 ---
 
 **Status:** ✅ Production Ready  
-**Last Updated:** November 2025  
+**Last Updated:** December 2025  
 **Version:** 1.0
