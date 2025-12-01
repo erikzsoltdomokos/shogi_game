@@ -36,6 +36,22 @@ java -cp "bin:lib/*" shogi.Main
 2. Nyissa meg a `Main.java` fájlt
 3. Kattintson a `Run` gombra (vagy nyomja meg az F5-öt)
 
+### Alternatíva - Eclipse:
+1. Indítsa el az Eclipse-t (Eclipse IDE for Java Developers)
+2. Importálja a projektet:
+   - File → Import → Existing Projects into Workspace
+   - Root Directory: válassza ki a `NHF_Shogi` mappát → Finish
+3. Állítsa be a függőségeket (ha vannak JAR-ok a `lib/` mappában):
+   - Project → Properties → Java Build Path → Libraries
+   - Add JARs… → válassza a projekt `lib/` mappájában lévő JAR-okat → Apply
+   - (Alternatíva: Add External JARs… ha a JAR-ok nem a projektben vannak)
+4. Ellenőrizze az output mappát:
+   - Project → Properties → Java Build Path → Source → Default output folder: `bin`
+5. Futtatás:
+   - Nyissa meg a `src/shogi/Main.java` fájlt
+   - Jobb klikk → Run As → Java Application
+   - (Vagy Run → Run Configurations… → Java Application → Main class: `shogi.Main` → Run)
+
 ---
 
 ## Játékmód Választás
