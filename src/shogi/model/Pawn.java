@@ -35,9 +35,9 @@ public class Pawn extends Piece {
     }
 
     /**
-     * Normál gyalog mozgás: 1 előre, csak üres mezőre.
-     * FONTOS: a gyalog NEM üthet frontálisan (ellentétben a sakkgyaloggal).
-     * 
+     * Normál gyalog mozgás: 1 előre. Shogiban a gyalog frontálisan üt,
+     * tehát az előtte lévő ellenfél bábu is üthető.
+     *
      * @param board a játéktábla
      * @return a lehetséges célpozíciók listája
      */
@@ -51,9 +51,11 @@ public class Pawn extends Piece {
 
         if (board.isInside(nr, nc)) {
             Piece p = board.getPieceAt(nr, nc);
-            // Gyalog csak üres mezőre léphet, NEM üthet frontálisan
-            if (p == null)
+            // Gyalog 1-et lép előre: üres mezőre léphet, vagy
+            // az előtte lévő ellenfél bábut ütheti.
+            if (p == null || p.getColor() != this.color) {
                 moves.add(new Position(nr, nc));
+            }
         }
 
         return moves;
