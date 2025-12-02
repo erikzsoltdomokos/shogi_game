@@ -50,8 +50,8 @@ class PieceTest {
     }
     
     @Test
-    @DisplayName("Pawn nem léphet elfoglalt mezőre")
-    void testPawnCannotMoveToOccupiedSquare() {
+    @DisplayName("Pawn frontálisan üthet ellenfelet")
+    void testPawnCanCaptureForward() {
         Pawn blackPawn = new Pawn(Piece.Color.BLACK, new Position(6, 4));
         Pawn whitePawn = new Pawn(Piece.Color.WHITE, new Position(5, 4));
         
@@ -60,8 +60,8 @@ class PieceTest {
         
         List<Position> moves = blackPawn.getLegalMoves(board);
         
-        assertFalse(moves.contains(new Position(5, 4)), 
-            "Pawn nem léphet ellenséges bábura (nem ütheti le frontálisan)");
+        assertTrue(moves.contains(new Position(5, 4)), 
+            "Shogi pawn frontálisan üti az előtte lévő ellenfelet");
     }
     
     @Test
